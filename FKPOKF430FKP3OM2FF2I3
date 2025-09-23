@@ -8862,6 +8862,17 @@ FunctionTable.VariableFunctions = {
 				local button = Isf:FindFirstChild(player.Name .. "Button")
 				if button then
 					button:Destroy()
+					local buttons = Isf:GetChildren()
+					local buttonHeight = 20
+					local padding = 5
+					local offsetY = 0
+					for _, btn in ipairs(buttons) do
+						if btn:IsA("TextButton") then
+							btn.Position = UDim2.new(0, padding, 0, offsetY)
+							offsetY = offsetY + buttonHeight + padding
+						end
+					end
+					Isf.CanvasSize = UDim2.new(0, 0, 0, offsetY)
 				end
 			end
 			for _,v in ipairs(Players:GetPlayers()) do
