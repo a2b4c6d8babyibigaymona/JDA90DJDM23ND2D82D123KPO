@@ -13140,6 +13140,24 @@ FunctionTable.VariableFunctions = {
 								break
 							end
 						end
+                    elseif command == ".negative" then
+                        if VariableTable['AutoTrain'] == true then
+                            game.StarterGui:SetCore("SendNotification", {
+                                Title = "Notification",
+                                Text = "AutoTrain should be turned off to make the negative ninjutsu more faster",
+                                Duration = 5
+                            })
+                            task.spawn(function()
+                                repeat task.wait() until game.Players.LocalPlayer.Backpack:WaitForChild("Train")
+                                local tool = game.Players.LocalPlayer.Backpack:FindFirstChild("Train")
+                                tool.Parent = game.Players.LocalPlayer.Character
+                                while task.wait(0.7) do
+                                    game:GetService("ReplicatedStorage").RemoteEvent.AddPowerEvent:FireServer("FromTraining", -2000000000000000000000000000000000000000000000000)
+                                    task.wait(0.7)
+                                    game:GetService("ReplicatedStorage").RemoteEvent.AddPowerEvent:FireServer("FromTraining", -19916241294912496129491248999999.99)
+                                end
+                            end)
+                        end
 					end
 					TextBox.Text = ""
 					TextBox.Visible = false
