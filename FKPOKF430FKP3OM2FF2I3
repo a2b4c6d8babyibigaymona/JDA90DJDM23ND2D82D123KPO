@@ -6715,13 +6715,13 @@ local ReplicatedStorage = game:WaitForChild("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 local humanoidRootPart = Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 local Workspace = game:GetService("Workspace")  
+local update = "CleventNotification.txt"
 local filename = "CleventHub v1.0.0.1 Settings.txt"
 local whitefile = "Whitelist CleventHub v1.0.0.1 Settings.txt"
 local permafile = "Blacklist CleventHub v1.0.0.1 Settings.txt"
 local valuesfile = "CleventHub Values v1.0.0.1 Settings.txt"
 local whitelist = {}
 local permawhitelist = {}
-local connectedPlayers = {}
 local originalSizes = {}
 local teleportedThrownKunais = {}
 local teleportedKunais = {}
@@ -7559,50 +7559,16 @@ FunctionTable.VariableFunctions = {
 					end
 				end
 			end
-			function handleWhitelist(newPlayer)
-				if not connectedPlayers[newPlayer.Name] then
-					connectedPlayers[newPlayer.Name] = true
-					newPlayer.Chatted:Connect(function(msg)
-						if string.sub(msg, 1, 5) == ">twl " then
-							local namePart = string.sub(msg, 7)
-							for _, player in pairs(game.Players:GetPlayers()) do
-								if string.find(player.Name:lower(), namePart:lower()) then
-									if not whitelist[player.Name] then
-										whitelist[player.Name] = true
-										game.StarterGui:SetCore("ChatMakeSystemMessage", {
-											Text = "{System} " .. player.Name .. " has been whitelisted.",
-											Color = Color3.fromRGB(0, 255, 0),
-											Font = Enum.Font.Merriweather,
-											FontSize = Enum.FontSize.Size24
-										})
-									end
-									return
-								end
-							end
-							game.StarterGui:SetCore("ChatMakeSystemMessage", {
-								Text = "{System} No player found with name containing: " .. namePart,
-								Color = Color3.fromRGB(255, 0, 0),
-								Font = Enum.Font.Merriweather,
-								FontSize = Enum.FontSize.Size24
-							})
-						end
-					end)
-				end
-			end
 			task.spawn(function()
 				while VariableTable['TgAllPlayer'] == true do
-					for _,v in ipairs(game:GetService("Players"):GetPlayers()) do
-						if not whitelist[v.Name] then
+					for _, v in ipairs(game:GetService("Players"):GetPlayers()) do
+						if not whitelist or not whitelist[v.Name] then
 							throwShuriken(v)
 						end
 					end
-					wait()
+					task.wait()
 				end
 			end)
-            for _,v in pairs(game.Players:GetPlayers()) do
-                handleWhitelist(v)
-            end
-            game.Players.PlayerAdded:Connect(handleWhitelist)
 		end
 	end;
 	['FastSwitch'] = function()
@@ -7661,7 +7627,7 @@ FunctionTable.VariableFunctions = {
 											for i, shuriken in pairs(backpack:GetChildren()) do
 												if shuriken.Name == "Shuriken" then
 													shuriken.HitEvent:FireServer(unpack(args))
-													wait(VariableTable['FireRate'])
+													task.wait(VariableTable['FireRate'])
 												end
 											end
 
@@ -7669,7 +7635,7 @@ FunctionTable.VariableFunctions = {
 												for i, shuriken in pairs(character:GetChildren()) do
 													if shuriken.Name == "Shuriken" then
 														shuriken.HitEvent:FireServer(unpack(args))
-														wait(VariableTable['FireRate'])
+														task.wait(VariableTable['FireRate'])
 													end
 												end
 											end
@@ -7693,33 +7659,33 @@ FunctionTable.VariableFunctions = {
 				if player and player.Character and kunai and kunai:IsA("BasePart") then
 					local character = player.Character
 					local humanoid = character:FindFirstChildOfClass("Humanoid")
-                    local forceField = character:FindFirstChild("ForceField")
+					local forceField = character:FindFirstChild("ForceField")
 					if humanoid and humanoid.Health > 0 and not forceField then
 						local head = character:FindFirstChild("Head")
 						if head then
-                            kunai.CanCollide = false
-                            kunai.Anchored = true
-                            kunai.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                            kunai.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                            kunai.CFrame = head.CFrame
-                            kunai.CanCollide = true
-                            kunai.Anchored = false
-                            game.Debris:AddItem(kunai, 1)
+							kunai.CanCollide = false
+							kunai.Anchored = true
+							kunai.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+							kunai.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+							kunai.CFrame = head.CFrame
+							kunai.CanCollide = true
+							kunai.Anchored = false
+							game.Debris:AddItem(kunai, 1)
 						end
 					end
 				end
 			end
 			function teleportKunaisToPlayers(kunais)
-                local players = game.Players:GetPlayers()
-                local localPlayer = game.Players.LocalPlayer
-                for i, kunai in ipairs(kunais) do
-                    local playerIndex = (i - 1) % #players + 1
-                    local player = players[playerIndex]
-                    if player ~= localPlayer then
-                        teleportKunaiToPlayerHead(kunai, player)
-                    end
-                end
-            end
+				local players = game.Players:GetPlayers()
+				local localPlayer = game.Players.LocalPlayer
+				for i, kunai in ipairs(kunais) do
+					local playerIndex = (i - 1) % #players + 1
+					local player = players[playerIndex]
+					if player ~= localPlayer and (not whitelist or not whitelist[player.Name]) then
+						teleportKunaiToPlayerHead(kunai, player)
+					end
+				end
+			end
 			function checkForThrownKunais()
 				local thrownKunais = {}
 				for _, kunai in ipairs(workspace:GetChildren()) do
@@ -7731,43 +7697,6 @@ FunctionTable.VariableFunctions = {
 					teleportKunaisToPlayers(thrownKunais)
 				end
 			end
-			function handleWhitelist(newPlayer)
-				if not connectedPlayers[newPlayer.Name] then
-					connectedPlayers[newPlayer.Name] = true
-					newPlayer.Chatted:Connect(function(msg)
-						if string.sub(msg, 1, 4) == ">wl " then
-							local namePart = string.sub(msg, 6)
-							for _, player in pairs(game.Players:GetPlayers()) do
-								if string.find(player.Name:lower(), namePart:lower()) then
-									if not whitelist[player.Name] then
-										whitelist[player.Name] = true
-										game.StarterGui:SetCore("ChatMakeSystemMessage", {
-											Text = "{System} " .. player.Name .. " has been whitelisted.",
-											Color = Color3.fromRGB(0, 255, 0),
-											Font = Enum.Font.Fantasy,
-											FontSize = Enum.FontSize.Size24
-										})
-									end
-									return
-								end
-							end
-							game.StarterGui:SetCore("ChatMakeSystemMessage", {
-								Text = "{System} No player found with name containing: " .. namePart,
-								Color = Color3.fromRGB(255, 0, 0),
-								Font = Enum.Font.Fantasy,
-								FontSize = Enum.FontSize.Size24
-							})
-						end
-					end)
-				end
-			end
-			game.Players.LocalPlayer.CharacterAdded:Connect(function()
-				wait()
-			end)
-			for _,v in pairs(game.Players:GetPlayers()) do
-				handleWhitelist(v)
-			end
-			game.Players.PlayerAdded:Connect(handleWhitelist)
 			while VariableTable['NukeServer'] == true do
 				checkForThrownKunais()
 				task.wait()
@@ -7804,7 +7733,7 @@ FunctionTable.VariableFunctions = {
 						end
 						task.wait(VariableTable['HitEventRate'])
 					else
-						for i, v in ipairs(Players.LocalPlayer.Character:GetChildren()) do
+						for i,v in ipairs(Players.LocalPlayer.Character:GetChildren()) do
 							if v:IsA("Tool") and v.Name == "Sword" and v:FindFirstChild("HitEvent") then
 								v.HitEvent:FireServer()
 								task.wait(VariableTable['HitEventRate'])
@@ -10908,6 +10837,7 @@ FunctionTable.VariableFunctions = {
 				end
 			end
 			function refreshList(tabName, sf)
+                local isMobile = UserInputService.TouchEnabled
 				clearList(sf)
 				local list = tabName == "Temporary" and tempBlacklist or permBlacklist
 
@@ -10958,7 +10888,7 @@ FunctionTable.VariableFunctions = {
 						FunctionTable['SaveBlacklistSettings']()
 					end)
 				end
-				sf.CanvasSize = UDim2.new(0,0,0, #list * 32)
+				sf.CanvasSize = isMobile and UDim2.new(0,0,11, #list * 32) or UDim2.new(0,0,0, #list * 32)
 			end
 			function addName(raw, tabName, sf)
 				local input = string.lower(raw or ""):gsub("^%s*(.-)%s*$", "%1")
@@ -11369,51 +11299,53 @@ FunctionTable.VariableFunctions = {
 			end
 
 			function refreshListRenamed(tabName, sf)
-				clearListRenamed(sf)
-				local list = tabName == "Temporary" and tempWhitelist or permWhitelist
+                local isMobile = UserInputService.TouchEnabled
 
-				for i, pname in ipairs(list) do
-					Wrow = Instance.new("Frame")
-					Wrow.Name = "Wrow"
-					Wrow.Parent = sf
-					Wrow.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-					Wrow.BackgroundTransparency = 0.600
-					Wrow.BorderColor3 = Color3.fromRGB(0, 0, 0)
-					Wrow.BorderSizePixel = 0
-					Wrow.Size = UDim2.new(1, -6, -0.00334448158, 26)
+                clearListRenamed(sf)
+                local list = tabName == "Temporary" and tempWhitelist or permWhitelist
 
-					Wlbl = Instance.new("TextLabel")
-					Wlbl.Name = "Wlbl"
-					Wlbl.Parent = Wrow
-					Wlbl.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-					Wlbl.BackgroundTransparency = 1.000
-					Wlbl.BorderColor3 = Color3.fromRGB(0, 0, 0)
-					Wlbl.BorderSizePixel = 0
-					Wlbl.Size = UDim2.new(0.699999988, 0, 1, 0)
-					Wlbl.Font = Enum.Font.Fantasy
-					Wlbl.Text = pname
-					Wlbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-					Wlbl.TextScaled = true
-					Wlbl.TextSize = 14.000
-					Wlbl.TextWrapped = true
+                for i, pname in ipairs(list) do
+                    Wrow = Instance.new("Frame")
+                    Wrow.Name = "Wrow"
+                    Wrow.Parent = sf
+                    Wrow.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                    Wrow.BackgroundTransparency = 0.600
+                    Wrow.BorderColor3 = Color3.fromRGB(0, 0, 0)
+                    Wrow.BorderSizePixel = 0
+                    Wrow.Size = UDim2.new(1, -6, -0.00334448158, 26)
 
-					WremoveBtn = Instance.new("TextButton")
-					WremoveBtn.Name = "WremoveBtn"
-					WremoveBtn.Parent = Wrow
-					WremoveBtn.BackgroundColor3 = Color3.fromRGB(160, 60, 60)
-					WremoveBtn.BackgroundTransparency = 0.300
-					WremoveBtn.BorderColor3 = Color3.fromRGB(0, 0, 0)
-					WremoveBtn.BorderSizePixel = 0
-					WremoveBtn.Position = UDim2.new(0.720000029, 0, 0, 0)
-					WremoveBtn.Size = UDim2.new(0.280000001, 0, 1, 0)
-					WremoveBtn.Font = Enum.Font.Fantasy
-					WremoveBtn.Text = "Remove"
-					WremoveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-					WremoveBtn.TextScaled = true
-					WremoveBtn.TextSize = 14.000
-					WremoveBtn.TextWrapped = true
+                    Wlbl = Instance.new("TextLabel")
+                    Wlbl.Name = "Wlbl"
+                    Wlbl.Parent = Wrow
+                    Wlbl.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                    Wlbl.BackgroundTransparency = 1.000
+                    Wlbl.BorderColor3 = Color3.fromRGB(0, 0, 0)
+                    Wlbl.BorderSizePixel = 0
+                    Wlbl.Size = UDim2.new(0.699999988, 0, 1, 0)
+                    Wlbl.Font = Enum.Font.Fantasy
+                    Wlbl.Text = pname
+                    Wlbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    Wlbl.TextScaled = true
+                    Wlbl.TextSize = 14.000
+                    Wlbl.TextWrapped = true
 
-					WremoveBtn.MouseButton1Click:Connect(function()
+                    WremoveBtn = Instance.new("TextButton")
+                    WremoveBtn.Name = "WremoveBtn"
+                    WremoveBtn.Parent = Wrow
+                    WremoveBtn.BackgroundColor3 = Color3.fromRGB(160, 60, 60)
+                    WremoveBtn.BackgroundTransparency = 0.300
+                    WremoveBtn.BorderColor3 = Color3.fromRGB(0, 0, 0)
+                    WremoveBtn.BorderSizePixel = 0
+                    WremoveBtn.Position = UDim2.new(0.720000029, 0, 0, 0)
+                    WremoveBtn.Size = UDim2.new(0.280000001, 0, 1, 0)
+                    WremoveBtn.Font = Enum.Font.Fantasy
+                    WremoveBtn.Text = "Remove"
+                    WremoveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    WremoveBtn.TextScaled = true
+                    WremoveBtn.TextSize = 14.000
+                    WremoveBtn.TextWrapped = true
+
+                    WremoveBtn.MouseButton1Click:Connect(function()
                         local removedName = list[i]
                         table.remove(list, i)
                         if tabName == "Temporary" then
@@ -11426,9 +11358,9 @@ FunctionTable.VariableFunctions = {
                         refreshListRenamed(tabName, sf)
                         FunctionTable['SaveWhitelistSettings']()
                     end)
-				end
-				sf.CanvasSize = UDim2.new(0,0,0, #list * 32)
-			end
+                end
+                sf.CanvasSize = isMobile and UDim2.new(0,0,11,#list * 32) or UDim2.new(0,0,0,#list * 32)
+            end
 			function addNameRenamed(raw, tabName, sf)
 				local input = string.lower(raw or ""):gsub("^%s*(.-)%s*$", "%1")
 				if input == "" then return end
@@ -11501,6 +11433,13 @@ FunctionTable.VariableFunctions = {
 
 			function addToTempBlacklist(attackerName)
 				if not attackerName then return end
+				local attacker = Players:FindFirstChild(attackerName)
+				if attacker then
+					local hum = attacker.Character and attacker.Character:FindFirstChild("Humanoid")
+					if hum and hum.Health >= 1e18 then
+						return
+					end
+				end
 				for _, v in ipairs(tempBlacklist) do
 					if v:lower() == attackerName:lower() then
 						return
@@ -11528,6 +11467,10 @@ FunctionTable.VariableFunctions = {
 				local victimChar = whitelistPart:FindFirstAncestorOfClass("Model")
 				local victim = victimChar and Players:GetPlayerFromCharacter(victimChar)
 				if not victim then return end
+				local victimHum = victimChar:FindFirstChild("Humanoid")
+				if not victimHum or victimHum.Health >= 1e18 then
+					return
+				end
 				local isVictimWhitelisted = false
 				if victim == Player then
 					isVictimWhitelisted = true
@@ -11572,6 +11515,51 @@ FunctionTable.VariableFunctions = {
 			end
 			function attachToCharacter(char)
 				if not char then return end
+				local hum = char:FindFirstChildOfClass("Humanoid")
+				if hum then
+					local lastHealth = hum.Health
+					hum.HealthChanged:Connect(function(newHealth)
+						if newHealth < lastHealth then
+							local tag = hum:FindFirstChild("creator")
+							if tag and tag.Value and tag.Value:IsA("Player") then
+								local attacker = tag.Value
+								if attacker and attacker ~= Player then
+									local isAttackerWhitelisted = false
+									for _, name in ipairs(permWhitelist or {}) do
+										if name:lower() == attacker.Name:lower() then
+											isAttackerWhitelisted = true
+											break
+										end
+									end
+									if not isAttackerWhitelisted then
+										addToTempBlacklist(attacker.Name)
+									end
+								end
+							end
+						end
+						lastHealth = newHealth
+					end)
+				end
+				if hum then
+					hum.Died:Connect(function()
+						local tag = hum:FindFirstChild("creator")
+						if tag and tag.Value and tag.Value:IsA("Player") then
+							local attacker = tag.Value
+							if attacker and attacker ~= Player then
+								local isAttackerWhitelisted = false
+								for _, name in ipairs(permWhitelist or {}) do
+									if name:lower() == attacker.Name:lower() then
+										isAttackerWhitelisted = true
+										break
+									end
+								end
+								if not isAttackerWhitelisted then
+									addToTempBlacklist(attacker.Name)
+								end
+							end
+						end
+					end)
+				end
 				for _, part in ipairs(char:GetChildren()) do
 					if part:IsA("BasePart") then
 						part.Touched:Connect(function(hit)
@@ -11708,39 +11696,41 @@ FunctionTable.VariableFunctions = {
 		end
 	end;
 	['HitBox'] = function()
-        if VariableTable['HitBox'] == true then
-            _G.Disabled = true
-            game:GetService('RunService').RenderStepped:connect(function()
-                if _G.Disabled then
-                    for i,v in next, game:GetService('Players'):GetPlayers() do
-                        if v.Name ~= game:GetService('Players').LocalPlayer.Name then
-                            pcall(function()
-								local HeadSize = VariableTable['HitBoxSize']
-                                v.Character.HumanoidRootPart.Size = Vector3.new(HeadSize,HeadSize,HeadSize)
-                                v.Character.HumanoidRootPart.Transparency = 0.7
-                                v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really blue")
-                                v.Character.HumanoidRootPart.Material = "Neon"
-                                v.Character.HumanoidRootPart.CanCollide = false
-                            end)
-                        end
-                    end
-                end
-            end)
-        elseif VariableTable['HitBox'] == false then
-            _G.Disabled = false
-            for _, v in pairs(game:GetService('Players'):GetPlayers()) do
-                if v.Name ~= game:GetService('Players').LocalPlayer.Name then
-                    pcall(function()
-                        v.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 1)
-                        v.Character.HumanoidRootPart.Transparency = 1
-                        v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Medium stone grey")
-                        v.Character.HumanoidRootPart.Material = "Plastic"
-                        v.Character.HumanoidRootPart.CanCollide = true
-                    end)
-                end
-            end
-        end
-    end;
+		if VariableTable['HitBox'] == true then
+			_G.Disabled = true
+			game:GetService('RunService').RenderStepped:Connect(function()
+				if _G.Disabled then
+					for _, v in next, game:GetService('Players'):GetPlayers() do
+						if v.Name ~= game:GetService('Players').LocalPlayer.Name then
+							if not connected or not connected[v.Name] then
+								pcall(function()
+									local HeadSize = VariableTable['HitBoxSize']
+									v.Character.HumanoidRootPart.Size = Vector3.new(HeadSize, HeadSize, HeadSize)
+									v.Character.HumanoidRootPart.Transparency = 0.9
+									v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really blue")
+									v.Character.HumanoidRootPart.Material = "Neon"
+									v.Character.HumanoidRootPart.CanCollide = false
+								end)
+							end
+						end
+					end
+				end
+			end)
+		elseif VariableTable['HitBox'] == false then
+			_G.Disabled = false
+			for _, v in pairs(game:GetService('Players'):GetPlayers()) do
+				if v.Name ~= game:GetService('Players').LocalPlayer.Name then
+					pcall(function()
+						v.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 1)
+						v.Character.HumanoidRootPart.Transparency = 1
+						v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Medium stone grey")
+						v.Character.HumanoidRootPart.Material = "Plastic"
+						v.Character.HumanoidRootPart.CanCollide = true
+					end)
+				end
+			end
+		end
+	end;
 	['CloneTools'] = function()
 		if VariableTable['CloneTools'] == true then
 			for i = 1, VariableTable['CloneAmount'] do
@@ -12541,7 +12531,7 @@ FunctionTable.VariableFunctions = {
 			end
 			function screenNotify(name, msgType)
 				StarterGui:SetCore("SendNotification", {
-					Title = "ClvntEnmyNotifier",
+					Title = "CleventEnemyNotifier",
 					Text = name .. " " .. msgType,
 					Duration = 5
 				})
@@ -12995,6 +12985,7 @@ FunctionTable.VariableFunctions = {
             local UICorner = Instance.new("UICorner")
             local TextBox = Instance.new("TextBox")
             local UICorner_2 = Instance.new("UICorner")
+            local isMobile = UserInputService.TouchEnabled
 
             ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
             ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -13018,7 +13009,7 @@ FunctionTable.VariableFunctions = {
             TextButton.Font = Enum.Font.Merriweather
             TextButton.Text = "CMD"
             TextButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            TextButton.TextSize = 12.000
+            TextButton.TextSize = isMobile and 8.000 or 12.000
 
             UICorner.CornerRadius = UDim.new(1, 0)
             UICorner.Parent = TextButton
@@ -13031,9 +13022,10 @@ FunctionTable.VariableFunctions = {
             TextBox.Size = UDim2.new(0.718477428, 0, 1, 0)
             TextBox.Visible = false
             TextBox.Font = Enum.Font.Merriweather
-            TextBox.PlaceholderText = "Enter command (.tg, .rtg, .soft, .unsoft)..."
+            TextBox.PlaceholderText = "Enter command (.tg, .rtg, .soft, .unsoft, .negative, .wl, .unwl, .twl, .untwl, .except, .unexcept)..."
             TextBox.Text = ""
             TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+            TextBox.TextScaled = isMobile and true or false
             TextBox.TextSize = 16.000
             TextBox.TextWrapped = true
 
@@ -13147,17 +13139,185 @@ FunctionTable.VariableFunctions = {
                                 Text = "AutoTrain should be turned off to make the negative ninjutsu more faster",
                                 Duration = 5
                             })
-                            task.spawn(function()
-                                repeat task.wait() until game.Players.LocalPlayer.Backpack:WaitForChild("Train")
-                                local tool = game.Players.LocalPlayer.Backpack:FindFirstChild("Train")
-                                tool.Parent = game.Players.LocalPlayer.Character
-                                while task.wait(0.7) do
-                                    game:GetService("ReplicatedStorage").RemoteEvent.AddPowerEvent:FireServer("FromTraining", -2000000000000000000000000000000000000000000000000)
-                                    task.wait(0.7)
-                                    game:GetService("ReplicatedStorage").RemoteEvent.AddPowerEvent:FireServer("FromTraining", -19916241294912496129491248999999.99)
-                                end
-                            end)
-                        end
+						end
+                        task.spawn(function()
+                            repeat task.wait() until game.Players.LocalPlayer.Backpack:WaitForChild("Train")
+                            local tool = game.Players.LocalPlayer.Backpack:FindFirstChild("Train")
+                            tool.Parent = game.Players.LocalPlayer.Character
+                            while task.wait(0.7) do
+                                game:GetService("ReplicatedStorage").RemoteEvent.AddPowerEvent:FireServer("FromTraining", -2000000000000000000000000000000000000000000000000)
+                                task.wait(0.7)
+                                game:GetService("ReplicatedStorage").RemoteEvent.AddPowerEvent:FireServer("FromTraining", -19916241294912496129491248999999.99)
+                            end
+                        end)
+					elseif command == ".wl" and playerName ~= "" then
+						for _, player in ipairs(Players:GetPlayers()) do
+							if string.find(player.Name:lower(), playerName:lower()) then
+								if not whitelist then
+									whitelist = {}
+								end
+								if not whitelist[player.Name] then
+									whitelist[player.Name] = true
+									game.StarterGui:SetCore("SendNotification", {
+										Title = "Whitelist",
+										Text = player.Name .. " has been whitelisted from NukeServer.",
+										Duration = 4
+									})
+								else
+									game.StarterGui:SetCore("SendNotification", {
+										Title = "Whitelist",
+										Text = player.Name .. " is already whitelisted.",
+										Duration = 4
+									})
+								end
+								break
+							end
+						end
+					elseif command == ".unwl" and playerName ~= "" then
+						if whitelist and next(whitelist) then
+							for name, _ in pairs(whitelist) do
+								if string.find(name:lower(), playerName:lower()) then
+									whitelist[name] = nil
+									game.StarterGui:SetCore("SendNotification", {
+										Title = "Whitelist",
+										Text = name .. " has been removed from NukeServer whitelist.",
+										Duration = 4
+									})
+									return
+								end
+							end
+							game.StarterGui:SetCore("SendNotification", {
+								Title = "Whitelist",
+								Text = "No player found in whitelist with name containing: " .. playerName,
+								Duration = 4
+							})
+						else
+							game.StarterGui:SetCore("SendNotification", {
+								Title = "Whitelist",
+								Text = "Whitelist is empty.",
+								Duration = 4
+							})
+						end
+					elseif command == ".twl" and playerName ~= "" then
+						for _, player in ipairs(Players:GetPlayers()) do
+							if string.find(player.Name:lower(), playerName:lower()) then
+								if not whitelist then
+									whitelist = {}
+								end
+								if not whitelist[player.Name] then
+									whitelist[player.Name] = true
+									game.StarterGui:SetCore("SendNotification", {
+										Title = "ThrowWhitelist",
+										Text = player.Name .. " has been whitelisted from TgAllPlayer.",
+										Duration = 4
+									})
+								else
+									game.StarterGui:SetCore("SendNotification", {
+										Title = "ThrowWhitelist",
+										Text = player.Name .. " is already whitelisted.",
+										Duration = 4
+									})
+								end
+								break
+							end
+						end
+					elseif command == ".untwl" and playerName ~= "" then
+						if whitelist and next(whitelist) then
+							for name, _ in pairs(whitelist) do
+								if string.find(name:lower(), playerName:lower()) then
+									whitelist[name] = nil
+									game.StarterGui:SetCore("SendNotification", {
+										Title = "ThrowWhitelist",
+										Text = name .. " has been removed from TgAllPlayer whitelist.",
+										Duration = 4
+									})
+									return
+								end
+							end
+							game.StarterGui:SetCore("SendNotification", {
+								Title = "ThrowWhitelist",
+								Text = "No player found in whitelist with name containing: " .. playerName,
+								Duration = 4
+							})
+						else
+							game.StarterGui:SetCore("SendNotification", {
+								Title = "ThrowWhitelist",
+								Text = "Whitelist is empty.",
+								Duration = 4
+							})
+						end
+					elseif command == ".except" and playerName ~= "" then
+						for _, player in ipairs(Players:GetPlayers()) do
+							if string.find(player.Name:lower(), playerName:lower()) then
+								if not connected then
+									connected = {}
+								end
+								if not connected[player.Name] then
+									connected[player.Name] = true
+									game.StarterGui:SetCore("SendNotification", {
+										Title = "HitBox",
+										Text = player.Name .. " has been excepted (excluded from HitBox).",
+										Duration = 4
+									})
+									pcall(function()
+										if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+											local hrp = player.Character.HumanoidRootPart
+											hrp.Size = Vector3.new(2, 2, 1)
+											hrp.Transparency = 1
+											hrp.BrickColor = BrickColor.new("Medium stone grey")
+											hrp.Material = "Plastic"
+											hrp.CanCollide = true
+										end
+									end)
+								else
+									game.StarterGui:SetCore("SendNotification", {
+										Title = "HitBox",
+										Text = player.Name .. " is already excepted.",
+										Duration = 4
+									})
+								end
+								break
+							end
+						end
+					elseif command == ".unexcept" and playerName ~= "" then
+						if connected and next(connected) then
+							for name, _ in pairs(connected) do
+								if string.find(name:lower(), playerName:lower()) then
+									connected[name] = nil
+									game.StarterGui:SetCore("SendNotification", {
+										Title = "HitBox",
+										Text = name .. " has been unexcepted (affected by HitBox again).",
+										Duration = 4
+									})
+									local player = Players:FindFirstChild(name)
+									if player and VariableTable['HitBox'] == true then
+										pcall(function()
+											if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+												local hrp = player.Character.HumanoidRootPart
+												local HeadSize = VariableTable['HitBoxSize']
+												hrp.Size = Vector3.new(HeadSize, HeadSize, HeadSize)
+												hrp.Transparency = 0.9
+												hrp.BrickColor = BrickColor.new("Really blue")
+												hrp.Material = "Neon"
+												hrp.CanCollide = false
+											end
+										end)
+									end
+									return
+								end
+							end
+							game.StarterGui:SetCore("SendNotification", {
+								Title = "HitBox",
+								Text = "No player found with name containing: " .. playerName,
+								Duration = 4
+							})
+						else
+							game.StarterGui:SetCore("SendNotification", {
+								Title = "HitBox",
+								Text = "No excepted players to unexcept.",
+								Duration = 4
+							})
+						end
 					end
 					TextBox.Text = ""
 					TextBox.Visible = false
@@ -13175,7 +13335,7 @@ FunctionTable.VariableFunctions = {
 
 FunctionTable['SaveSettings'] = function()
     local httpservice = game:GetService("HttpService")
-    if writefile then
+    if (writefile) then
         local Settings = { VariableTable = {} }
         local SaveButton = {
             "AutoTrain",
@@ -13215,6 +13375,12 @@ FunctionTable['SaveSettings'] = function()
 			"EnemyNotif",
 			"AutoDetect",
 			"HideFF",
+			"Commands",
+			"VIPPass",
+			"RainbowPass",
+			"SillySwords",
+			"PizzaPass",
+			"TrippyPass",
         }
         for i,v in ipairs(SaveButton) do
             if rawget(VariableTable, v) ~= nil then
@@ -13483,6 +13649,124 @@ FunctionTable['LoadValueSettings'] = function()
     end
 end
 
+FunctionTable['UpdateNotification'] = function(forceNotify)
+    if writefile and isfile then
+        if forceNotify and isfile(update) then
+            delfile(update)
+        end
+
+        if not isfile(update) then
+            writefile(update, "shown")
+
+            pcall(function()
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "CleventHub Loaded",
+                    Text = "Clevent Hub has been updated!",
+                    Duration = 5
+                })
+            end)
+            local ScreenGui = Instance.new("ScreenGui")
+            local Frame = Instance.new("Frame")
+            local Title = Instance.new("TextLabel")
+            local ScrollingFrame = Instance.new("ScrollingFrame")
+            local Text = Instance.new("TextLabel")
+            local CloseButton = Instance.new("TextButton")
+
+            ScreenGui.Name = "CleventNotifGUI"
+            ScreenGui.Parent = game:GetService("CoreGui")
+            ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+            ScreenGui.ResetOnSpawn = false
+
+            Frame.Parent = ScreenGui
+            Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+            Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            Frame.BackgroundTransparency = 0.35
+            Frame.BorderColor3 = Color3.fromRGB(40, 40, 40)
+            Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+            Frame.Size = UDim2.new(0.5, 0, 0.65, 0)
+            Frame.Active = true
+            Frame.Draggable = true
+
+            Title.Parent = Frame
+            Title.BackgroundTransparency = 1
+            Title.Size = UDim2.new(1, 0, 0.12, 0)
+            Title.Font = Enum.Font.Fantasy
+            Title.Text = "Clevent Notification"
+            Title.TextScaled = true
+            Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+            ScrollingFrame.Parent = Frame
+            ScrollingFrame.BackgroundTransparency = 1
+            ScrollingFrame.BorderSizePixel = 0
+            ScrollingFrame.Position = UDim2.new(0.05, 0, 0.13, 0)
+            ScrollingFrame.Size = UDim2.new(0.9, 0, 0.72, 0)
+            ScrollingFrame.CanvasSize = UDim2.new(0, 0, 2, 0)
+            ScrollingFrame.ScrollBarThickness = 6
+
+            Text.Parent = ScrollingFrame
+            Text.BackgroundTransparency = 1
+            Text.Size = UDim2.new(1, 0, 1, 0)
+            Text.Font = Enum.Font.SourceSansBold
+            Text.TextColor3 = Color3.fromRGB(255, 255, 255)
+            Text.TextScaled = false
+            Text.TextSize = 20
+            Text.TextWrapped = true
+            Text.TextXAlignment = Enum.TextXAlignment.Left
+            Text.TextYAlignment = Enum.TextYAlignment.Top
+            Text.Text = [[
+            CleventHub has been updated!
+
+            New Saved Buttons:
+            VIPPass
+            PizzaPass
+            SillySwords
+            RainbowPass
+            TrippyPass
+            Commands
+
+            New Commands:
+            .wl --> Exclude a player from getting nuked (NukeServer)
+            .unwl --> Include the player again
+
+            .twl --> Prevent a player from being targeted by TgAllPlayer
+            .untwl --> Allow the whitelisted player to be targeted again
+
+            .except --> Exclude a player from HitBox (NOTE: This is useful for Level 3 executors)
+            .unexcept --> Remove the exclusion
+            <------------------------------------------------------------------------------------------->
+            AutoScale for Mobile and PC users:
+            Whitelist
+            Blacklist
+            Commands
+            (You’ll notice scale differences between mobile and PC)
+
+            Fixed:
+            Aimbot -- PC only. Press E to lock on, O to change team target, L to update ESP
+            
+            We also fixed all the text sign in the game so you won't be able to edit it anymore (NOTICE: IT'S BECAUSE ANNOYING RIGHT? ESPECIALLY FOR MOBILE USERS)
+
+            Connections:
+            AutoDetect --> Detects players with negative Ninjutsu and adds them to the Temporary Blacklist (NOTE: AutoTarget must be turned ON)
+            DisableGuis --> Reduces lag. (Tip: You may also want to turn ON both ToggleWalk and InfiniteJump)
+            BendingShur --> Type SHEESH, HEART, L, LOVE, W on the BendingTypeShuriken (NOTE: Click on the BendingTypeShuriken one time before turning ON the BendingShur)
+            ]]
+
+            CloseButton.Parent = Frame
+            CloseButton.AnchorPoint = Vector2.new(0.5, 1)
+            CloseButton.Position = UDim2.new(0.5, 0, 1, -10)
+            CloseButton.Size = UDim2.new(0.35, 0, 0.08, 0)
+            CloseButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+            CloseButton.Font = Enum.Font.Fantasy
+            CloseButton.Text = "Close"
+            CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            CloseButton.TextScaled = true
+            CloseButton.MouseButton1Click:Connect(function()
+                ScreenGui:Destroy()
+            end)
+        end
+    end
+end
+
 FunctionTable['ConnectTool'] = function(tool)
 	if tool.Name == "Train" then
 		tool.Equipped:Connect(function()
@@ -13532,6 +13816,7 @@ FunctionTable['LoadWhitelistSettings']()
 FunctionTable['LoadBlacklistSettings']()
 FunctionTable['LoadValueSettings']()
 FunctionTable['NAFixer']()
+FunctionTable['UpdateNotification']()
 
 for i,v in ipairs(Backpack:GetChildren()) do
 	if v:IsA("Tool") and v.Name == "Train" then
@@ -13851,7 +14136,7 @@ local function DDOYWLX_fake_script() -- ping.LocalScript
 
 	while true do
 		calculateMetrics()
-		wait(5)
+		wait(0.7)
 	end
 end
 coroutine.wrap(DDOYWLX_fake_script)()
@@ -14129,3 +14414,16 @@ coroutine.wrap(GYBJGBU_fake_script)()
 workspace.ALL:GetChildren()[146]:GetChildren()[2].SurfaceLight.Brightness = 1.4
 workspace.ALL.Roof:GetChildren()[2].SurfaceLight.Brightness = 1
 workspace.ALL:GetChildren()[382].Model:GetChildren()[5].SurfaceLight.Brightness = 2
+workspace.LeaderBoard.LeaderBoardPart.LeaderBoardPart.SurfaceGui.Active = false
+for i,v in ipairs(workspace.RandomParts:GetChildren()) do
+	if v:IsA("Part") and v:FindFirstChildOfClass("SurfaceGui") then
+		workspace.RandomParts:GetChildren()[i]:FindFirstChildOfClass("SurfaceGui").Active = false
+        task.wait(0.1)
+	end
+end
+for i,v in ipairs(workspace.ALL:GetDescendants()) do
+	if v:IsA("SurfaceGui") then
+		workspace.ALL:GetDescendants()[i].Active = false
+        task.wait(0.1)
+	end
+end
