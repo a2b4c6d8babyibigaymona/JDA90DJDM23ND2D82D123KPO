@@ -11735,6 +11735,7 @@ FunctionTable.VariableFunctions = {
 		if VariableTable['CloneTools'] == true then
 			for i = 1, VariableTable['CloneAmount'] do
 				game:GetService("ReplicatedStorage").RemoteEvent.SpawnCharacterEvent:FireServer("MainSpawn")
+				task.wait()
 			end
 		end
 	end;
