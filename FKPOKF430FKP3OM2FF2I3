@@ -6715,8 +6715,9 @@ local ReplicatedStorage = game:WaitForChild("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 local humanoidRootPart = Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 local Workspace = game:GetService("Workspace")  
-local update1 = "CleventNotification1.txt"
 local filename = "CleventHub v1.0.0.1 Settings.txt"
+local prefixfile = "CleventHub Prefix v1.0.0.1 Settings.txt"
+local update2 = "CleventNotification2.txt"
 local whitefile = "Whitelist CleventHub v1.0.0.1 Settings.txt"
 local permafile = "Blacklist CleventHub v1.0.0.1 Settings.txt"
 local valuesfile = "CleventHub Values v1.0.0.1 Settings.txt"
@@ -6732,6 +6733,8 @@ local tempWhitelist = {}
 local permWhitelist = {}
 local targetPlayers = {}
 local connected = {}
+local hiddenFF = {}
+local hiddenFX = {}
 local DeathTrainConnection
 local HealthConnection
 local tgPlayer = nil
@@ -11431,6 +11434,28 @@ FunctionTable.VariableFunctions = {
 			refreshListRenamed("Temporary", WTempsf)
 			refreshListRenamed("Permanent", WPermsf)
 
+			function disableShurikens(targetPlayer)
+                if not targetPlayer then return end
+                local shurikens = {}
+                for _, item in ipairs(targetPlayer.Backpack:GetChildren()) do
+                    if item.Name == "Shuriken" then
+                        table.insert(shurikens, item)
+                    end
+                end
+                local character = targetPlayer.Character
+                if character then
+                    for _, item in ipairs(character:GetChildren()) do
+                        if item.Name == "Shuriken" then
+                            table.insert(shurikens, item)
+                        end
+                    end
+                end
+                for _, shuriken in ipairs(shurikens) do
+                    if shuriken:FindFirstChild("HitEvent") then
+                        shuriken.HitEvent:FireServer()
+                    end
+                end
+            end
 			function addToTempBlacklist(attackerName)
 				if not attackerName then return end
 				local attacker = Players:FindFirstChild(attackerName)
@@ -11510,6 +11535,7 @@ FunctionTable.VariableFunctions = {
 					end
 					if not isAttackerWhitelisted then
 						addToTempBlacklist(attacker.Name)
+						disableShurikens(attacker)
 					end
 				end
 			end
@@ -11657,13 +11683,23 @@ FunctionTable.VariableFunctions = {
 		if VariableTable['InfiniteJump'] == true then
 			if not InfiniteJumpConnection then
 				InfiniteJumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
-					if Character and Character:FindFirstChildOfClass("Humanoid") then
-						local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-						Humanoid.UseJumpPower = true
-						Humanoid.JumpPower = VariableTable['JumpHeight']
-						Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+					if Character and Character:FindFirstChild("Humanoid") then
+						local Humanoid = Character:FindFirstChild("Humanoid")
+						if Humanoid and Humanoid.Health > 0 then
+							Humanoid.UseJumpPower = true
+							Humanoid.JumpPower = VariableTable['JumpHeight']
+							Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+						end
 					end
 				end)
+				if Character and Character:FindFirstChild("Humanoid") then
+					Character:FindFirstChild("Humanoid").Died:Connect(function()
+						if InfiniteJumpConnection then
+							InfiniteJumpConnection:Disconnect()
+							InfiniteJumpConnection = nil
+						end
+					end)
+				end
 			end
 		elseif VariableTable['InfiniteJump'] == false then
 			if InfiniteJumpConnection then
@@ -11801,12 +11837,10 @@ FunctionTable.VariableFunctions = {
 		if VariableTable['AutoEqpSwrd'] == true then
 			while VariableTable['AutoEqpSwrd'] == true do
 				task.wait()
-				local sword = Backpack:FindFirstChild("Sword")
-				if sword then
-					sword.Parent = Character
+				if Backpack:FindFirstChild("Sword") then
+					Backpack:FindFirstChild("Sword").Parent = Players.LocalPlayer.Character
 				end
-				local charSword = Character:FindFirstChild("Sword")
-				if charSword and not charSword:IsDescendantOf(Backpack) then
+				if Players.LocalPlayer.Character:FindFirstChild("Sword") and not Players.LocalPlayer.Character:FindFirstChild("Sword"):IsDescendantOf(Backpack) then
 				end
 			end
 		end
@@ -13681,6 +13715,15 @@ FunctionTable['SaveSettings'] = function()
     end
 end
 
+FunctionTable['SavePrefix'] = function()
+    local httpservice = game:GetService("HttpService")
+    if (writefile) then
+        local Settings = {}
+        Settings.CommandPrefix = commandPrefix
+        writefile(prefixfile, httpservice:JSONEncode(Settings))
+    end
+end
+
 FunctionTable['SaveWhitelistSettings'] = function()
     local httpservice = game:GetService("HttpService")
     if (writefile) then
@@ -13759,6 +13802,7 @@ FunctionTable['MasterFunc'] = function(Text, UIElement, Save, Loading)
     end
     if Save then
         FunctionTable['SaveSettings']()
+        FunctionTable['SavePrefix']()
 		FunctionTable['SaveWhitelistSettings']()
         FunctionTable['SaveBlacklistSettings']()
 		FunctionTable['SaveValueSettings']()
@@ -13906,47 +13950,25 @@ FunctionTable['LoadSettings'] = function()
     end
 end
 
-
-FunctionTable['LoadWhitelistSettings'] = function()
+FunctionTable['LoadPrefix'] = function()
     local httpservice = game:GetService("HttpService")
-    if (readfile and isfile and isfile(whitefile)) then
-        local Settings = httpservice:JSONDecode(readfile(whitefile))
-		permWhitelist = {}
-        for i,v in pairs(Settings.permWhitelist) do	
-            table.insert(permWhitelist, v)
+    if (readfile and isfile and isfile(prefixfile)) then
+        local Settings = httpservice:JSONDecode(readfile(prefixfile))
+        if Settings.CommandPrefix then
+            commandPrefix = Settings.CommandPrefix
+            TextBox.PlaceholderText = "Enter command (" .. commandPrefix .. "tg, " .. commandPrefix .. "rtg, " .. commandPrefix .. "soft, " .. commandPrefix .. "unsoft, " .. commandPrefix .. "negative, " .. commandPrefix .. "wl, " .. commandPrefix .. "unwl, " .. commandPrefix .. "twl, " .. commandPrefix .. "untwl, " .. commandPrefix .. "except, " .. commandPrefix .. "unexcept, " .. commandPrefix .. "cmdlists, " .. commandPrefix .. "setprefix, etc)..."
         end
-    end
-end
-
-FunctionTable['LoadBlacklistSettings'] = function()
-    local httpservice = game:GetService("HttpService")
-    if (readfile and isfile and isfile(permafile)) then
-        local Settings = httpservice:JSONDecode(readfile(permafile))
-        permBlacklist = {}
-        for i,v in ipairs(Settings.permBlacklist) do
-            table.insert(permBlacklist, v)
-        end
-    end
-end
-
-FunctionTable['LoadValueSettings'] = function()
-    local httpservice = game:GetService("HttpService")
-    if (readfile and isfile and isfile(valuesfile)) then
-        local Settings = httpservice:JSONDecode(readfile(valuesfile))
-        totalTime = Settings.TotalSavedTime
-		killCount = Settings.TotalKills
-		totalTrainingTime = Settings.TotalTrainingTime
     end
 end
 
 FunctionTable['UpdateNotification'] = function(forceNotify)
 	if writefile and isfile then
-		if forceNotify and isfile(update1) then
-			delfile(update1)
+		if forceNotify and isfile(update2) then
+			delfile(update2)
 		end
 
-		if not isfile(update1) then
-			writefile(update1, "shown")
+		if not isfile(update2) then
+			writefile(update2, "shown")
 
 			pcall(function()
 				game:GetService("StarterGui"):SetCore("SendNotification", {
@@ -14015,39 +14037,20 @@ FunctionTable['UpdateNotification'] = function(forceNotify)
 			Text.Text = [[
             CleventHub has been updated!
 
-            New Saved Buttons:
-            VIPPass
-            PizzaPass
-            SillySwords
-            RainbowPass
-            TrippyPass
-            Commands
+            🛠️New Commands:
+			cmdlists --> type this command to see all available commands (opens the gui Command lists)
 
-            New Commands:
-            .wl --> Exclude a player from getting nuked (NukeServer)
-            .unwl --> Include the player again
+			setprefix --> changes the command bar prefix (NOTE: the only prefixes you can use are dot(.), slash(/), and semicolon(;) )
 
-            .twl --> Prevent a player from being targeted by TgAllPlayer
-            .untwl --> Allow the whitelisted player to be targeted again
+			hideff --> hides all player's ForceFields (Bubbles)
+			unhideff --> shows the player's ForceFields again
 
-            .except --> Exclude a player from HitBox (NOTE: This is useful for Level 3 executors)
-            .unexcept --> Remove the exclusion
+			hidefx --> hides Sword and Shuriken effects such as Particles and Trails
+			unhidefx --> shows Sword and Shuriken effects again
+			(Note: this is useful if your lagging)
             <------------------------------------------------------------------------------------------->
-            AutoScale for Mobile and PC users:
-            Whitelist
-            Blacklist
-            Commands
-            (You’ll notice scale differences between mobile and PC)
-
-            Fixed:
-            Aimbot -- PC only. Press E to lock on, O to change team target, L to update ESP
-            
-            We also fixed all the text sign in the game so you won't be able to edit it anymore (NOTICE: IT'S BECAUSE ANNOYING RIGHT? ESPECIALLY FOR MOBILE USERS)
-
-            Connections:
-            AutoDetect --> Detects players with negative Ninjutsu and adds them to the Temporary Blacklist (NOTE: AutoTarget must be turned ON)
-            DisableGuis --> Reduces lag. (Tip: You may also want to turn ON both ToggleWalk and InfiniteJump)
-            BendingShur --> Type SHEESH, HEART, L, LOVE, W on the BendingTypeShuriken (NOTE: Click on the BendingTypeShuriken one time before turning ON the BendingShur)
+            🛠️Fixed:
+            Whitelist --> Disables Attacker's shurikens temporarily so they won't recieve the same damage as you
             
             ]]
 			Text.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -14079,6 +14082,38 @@ FunctionTable['UpdateNotification'] = function(forceNotify)
 			end)
 		end
 	end
+end
+
+FunctionTable['LoadWhitelistSettings'] = function()
+    local httpservice = game:GetService("HttpService")
+    if (readfile and isfile and isfile(whitefile)) then
+        local Settings = httpservice:JSONDecode(readfile(whitefile))
+		permWhitelist = {}
+        for i,v in pairs(Settings.permWhitelist) do	
+            table.insert(permWhitelist, v)
+        end
+    end
+end
+
+FunctionTable['LoadBlacklistSettings'] = function()
+    local httpservice = game:GetService("HttpService")
+    if (readfile and isfile and isfile(permafile)) then
+        local Settings = httpservice:JSONDecode(readfile(permafile))
+        permBlacklist = {}
+        for i,v in ipairs(Settings.permBlacklist) do
+            table.insert(permBlacklist, v)
+        end
+    end
+end
+
+FunctionTable['LoadValueSettings'] = function()
+    local httpservice = game:GetService("HttpService")
+    if (readfile and isfile and isfile(valuesfile)) then
+        local Settings = httpservice:JSONDecode(readfile(valuesfile))
+        totalTime = Settings.TotalSavedTime
+		killCount = Settings.TotalKills
+		totalTrainingTime = Settings.TotalTrainingTime
+    end
 end
 
 FunctionTable['ConnectTool'] = function(tool)
@@ -14126,6 +14161,7 @@ end
 FunctionTable['UpdateElements']()
 FunctionTable['UpdateTextFrames']()
 FunctionTable['LoadSettings']()
+FunctionTable['LoadPrefix']()
 FunctionTable['LoadWhitelistSettings']()
 FunctionTable['LoadBlacklistSettings']()
 FunctionTable['LoadValueSettings']()
@@ -14142,6 +14178,12 @@ Backpack.ChildAdded:Connect(function(tool)
 		FunctionTable['ConnectTool'](tool)
 	end
 end)
+for i,v in ipairs(Character:GetChildren()) do
+	if v:IsA("Tool") and v.Name == "Train" then
+		FunctionTable['ConnectTool'](v)
+		equipped = true
+	end
+end
 
 task.spawn(function()
     for i,v in pairs(Player.PlayerGui:GetChildren()) do
@@ -14180,7 +14222,7 @@ Players.LocalPlayer.CharacterAdded:Connect(function(NewChar)
 		task.delay(1, function()
             if thisRespawn == respawnCounter and VariableTable['CloneTools'] == true then
                 local count = 0
-                for _,v in ipairs(Players.LocalPlayer:WaitForChild("Backpack"):GetChildren()) do
+                for i,v in ipairs(Players.LocalPlayer:WaitForChild("Backpack"):GetChildren()) do
                     if v:IsA("Tool") and v.Name == "Shuriken" then
                         count += 1
                     end
@@ -14278,6 +14320,7 @@ end)
 Players.PlayerRemoving:Connect(function(removedPlr)
     if removedPlr == Players.LocalPlayer then
         FunctionTable['SaveSettings']()
+        FunctionTable['LoadPrefix']()
 		FunctionTable['SaveWhitelistSettings']()
         FunctionTable['SaveBlacklistSettings']()
 		FunctionTable['SaveValueSettings']()
