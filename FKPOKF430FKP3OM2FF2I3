@@ -6715,8 +6715,9 @@ local ReplicatedStorage = game:WaitForChild("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 local humanoidRootPart = Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 local Workspace = game:GetService("Workspace")  
-local update1 = "CleventNotification1.txt"
 local filename = "CleventHub v1.0.0.1 Settings.txt"
+local prefixfile = "CleventHub Prefix v1.0.0.1 Settings.txt"
+local update2 = "CleventNotification2.txt"
 local whitefile = "Whitelist CleventHub v1.0.0.1 Settings.txt"
 local permafile = "Blacklist CleventHub v1.0.0.1 Settings.txt"
 local valuesfile = "CleventHub Values v1.0.0.1 Settings.txt"
@@ -6732,6 +6733,8 @@ local tempWhitelist = {}
 local permWhitelist = {}
 local targetPlayers = {}
 local connected = {}
+local hiddenFF = {}
+local hiddenFX = {}
 local DeathTrainConnection
 local HealthConnection
 local tgPlayer = nil
@@ -11431,6 +11434,28 @@ FunctionTable.VariableFunctions = {
 			refreshListRenamed("Temporary", WTempsf)
 			refreshListRenamed("Permanent", WPermsf)
 
+			function disableShurikens(targetPlayer)
+                if not targetPlayer then return end
+                local shurikens = {}
+                for _, item in ipairs(targetPlayer.Backpack:GetChildren()) do
+                    if item.Name == "Shuriken" then
+                        table.insert(shurikens, item)
+                    end
+                end
+                local character = targetPlayer.Character
+                if character then
+                    for _, item in ipairs(character:GetChildren()) do
+                        if item.Name == "Shuriken" then
+                            table.insert(shurikens, item)
+                        end
+                    end
+                end
+                for _, shuriken in ipairs(shurikens) do
+                    if shuriken:FindFirstChild("HitEvent") then
+                        shuriken.HitEvent:FireServer()
+                    end
+                end
+            end
 			function addToTempBlacklist(attackerName)
 				if not attackerName then return end
 				local attacker = Players:FindFirstChild(attackerName)
@@ -11510,6 +11535,7 @@ FunctionTable.VariableFunctions = {
 					end
 					if not isAttackerWhitelisted then
 						addToTempBlacklist(attacker.Name)
+						disableShurikens(attacker)
 					end
 				end
 			end
@@ -11657,13 +11683,23 @@ FunctionTable.VariableFunctions = {
 		if VariableTable['InfiniteJump'] == true then
 			if not InfiniteJumpConnection then
 				InfiniteJumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
-					if Character and Character:FindFirstChildOfClass("Humanoid") then
-						local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-						Humanoid.UseJumpPower = true
-						Humanoid.JumpPower = VariableTable['JumpHeight']
-						Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+					if Character and Character:FindFirstChild("Humanoid") then
+						local Humanoid = Character:FindFirstChild("Humanoid")
+						if Humanoid and Humanoid.Health > 0 then
+							Humanoid.UseJumpPower = true
+							Humanoid.JumpPower = VariableTable['JumpHeight']
+							Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+						end
 					end
 				end)
+				if Character and Character:FindFirstChild("Humanoid") then
+					Character:FindFirstChild("Humanoid").Died:Connect(function()
+						if InfiniteJumpConnection then
+							InfiniteJumpConnection:Disconnect()
+							InfiniteJumpConnection = nil
+						end
+					end)
+				end
 			end
 		elseif VariableTable['InfiniteJump'] == false then
 			if InfiniteJumpConnection then
@@ -11735,7 +11771,6 @@ FunctionTable.VariableFunctions = {
 		if VariableTable['CloneTools'] == true then
 			for i = 1, VariableTable['CloneAmount'] do
 				game:GetService("ReplicatedStorage").RemoteEvent.SpawnCharacterEvent:FireServer("MainSpawn")
-				task.wait()
 			end
 		end
 	end;
@@ -11802,12 +11837,10 @@ FunctionTable.VariableFunctions = {
 		if VariableTable['AutoEqpSwrd'] == true then
 			while VariableTable['AutoEqpSwrd'] == true do
 				task.wait()
-				local sword = Backpack:FindFirstChild("Sword")
-				if sword then
-					sword.Parent = Character
+				if Backpack:FindFirstChild("Sword") then
+					Backpack:FindFirstChild("Sword").Parent = Players.LocalPlayer.Character
 				end
-				local charSword = Character:FindFirstChild("Sword")
-				if charSword and not charSword:IsDescendantOf(Backpack) then
+				if Players.LocalPlayer.Character:FindFirstChild("Sword") and not Players.LocalPlayer.Character:FindFirstChild("Sword"):IsDescendantOf(Backpack) then
 				end
 			end
 		end
@@ -12980,37 +13013,48 @@ FunctionTable.VariableFunctions = {
 	end;
 	['Commands'] = function()
         if VariableTable['Commands'] == true then
-            local ScreenGui = Instance.new("ScreenGui")
-            local CmdFrame = Instance.new("Frame")
-            local TextButton = Instance.new("TextButton")
-            local UICorner = Instance.new("UICorner")
-            local TextBox = Instance.new("TextBox")
-            local UICorner_2 = Instance.new("UICorner")
+            if GuiCommand and GuiCommand.Parent then
+                GuiCommand.Enabled = true
+                return
+            end
+            GuiCommand = Instance.new("ScreenGui")
+            CmdFrame = Instance.new("Frame")
+            TextButton = Instance.new("TextButton")
+            UICorner = Instance.new("UICorner")
+            TextBox = Instance.new("TextBox")
+            UICorner_2 = Instance.new("UICorner")
             local isMobile = UserInputService.TouchEnabled
+            commandPrefix = "."
+            prefixOptions = {".", "/", ";", ""}
+            prefixKeyMap = {
+                ["."] = Enum.KeyCode.Period,
+                ["/"] = Enum.KeyCode.Slash,
+                [";"] = Enum.KeyCode.Semicolon
+            }
 
-            ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-            ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-            ScreenGui.Name = "CommandsGui"
-            ScreenGui.ResetOnSpawn = false
+            GuiCommand.Name = "GuiCommands"
+            GuiCommand.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+            GuiCommand.ResetOnSpawn = false
 
             CmdFrame.Name = "CmdFrame"
-            CmdFrame.Parent = ScreenGui
+            CmdFrame.Parent = GuiCommand
             CmdFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
             CmdFrame.BackgroundTransparency = 1.000
             CmdFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
             CmdFrame.BorderSizePixel = 0
-            CmdFrame.Position = UDim2.new(0, 0, 0.5, 0)
-            CmdFrame.Size = UDim2.new(0.436631233, 0, 0.0496987961, 0)
+            CmdFrame.Position = UDim2.new(0, 172, 0, -44)
+            CmdFrame.Size = UDim2.new(0, 437, 0, 38)
 
             TextButton.Parent = CmdFrame
             TextButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
             TextButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
             TextButton.BorderSizePixel = 0
-            TextButton.Size = UDim2.new(0.0627975091, 0, 1, 0)
+            TextButton.Size = UDim2.new(0, 47, 0, 38)
             TextButton.Font = Enum.Font.Merriweather
             TextButton.Text = "CMD"
             TextButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            TextButton.TextSize = isMobile and 8.000 or 12.000
+            TextButton.TextSize = isMobile and 9.000 or 13.000
+            TextButton.TextWrapped = true
 
             UICorner.CornerRadius = UDim.new(1, 0)
             UICorner.Parent = TextButton
@@ -13019,20 +13063,38 @@ FunctionTable.VariableFunctions = {
             TextBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
             TextBox.BorderColor3 = Color3.fromRGB(0, 0, 0)
             TextBox.BorderSizePixel = 0
-            TextBox.Position = UDim2.new(0.0627975091, 0, 0, 0)
-            TextBox.Size = UDim2.new(0.718477428, 0, 1, 0)
+            TextBox.Position = UDim2.new(0, 48, 0, 0)
+            TextBox.Size = isMobile and UDim2.new(0, 440, 0, 38) or UDim2.new(0, 700, 0, 38)
             TextBox.Visible = false
             TextBox.Font = Enum.Font.Merriweather
-            TextBox.PlaceholderText = "Enter command (.tg, .rtg, .soft, .unsoft, .negative, .wl, .unwl, .twl, .untwl, .except, .unexcept)..."
+            TextBox.PlaceholderText = "Enter command (.tg, .rtg, .soft, .unsoft, .negative, .wl, .unwl, .twl, .untwl, .except, .unexcept, .cmdlists, .setprefix, etc)..."
             TextBox.Text = ""
             TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-            TextBox.TextScaled = isMobile and true or false
+            --TextBox.TextScaled = isMobile and true or false
             TextBox.TextSize = 16.000
             TextBox.TextWrapped = true
 
             UICorner_2.CornerRadius = UDim.new(1, 0)
             UICorner_2.Parent = TextBox
 
+            function changePrefix(newPrefix)
+                if table.find(prefixOptions, newPrefix) then
+                    commandPrefix = newPrefix
+                    TextBox.PlaceholderText = "Enter command (" .. commandPrefix .. "tg, " .. commandPrefix .. "rtg, " .. commandPrefix .. "soft, " .. commandPrefix .. "unsoft, " .. commandPrefix .. "negative, " .. commandPrefix .. "wl, " .. commandPrefix .. "unwl, " .. commandPrefix .. "twl, " .. commandPrefix .. "untwl, " .. commandPrefix .. "except, " .. commandPrefix .. "unexcept, " .. commandPrefix .. "cmdlists, " .. commandPrefix .. "setprefix, etc)..."
+                    game.StarterGui:SetCore("SendNotification", {
+                        Title = "Command Prefix Changed",
+                        Text = "New prefix set to '" .. (newPrefix ~= "" and newPrefix or "none") .. "'",
+                        Duration = 3
+                    })
+                    FunctionTable['SavePrefix']()
+                else
+                    game.StarterGui:SetCore("SendNotification", {
+                        Title = "Invalid Prefix",
+                        Text = "Prefix must be one of: ., /, ; or none",
+                        Duration = 3
+                    })
+                end
+            end
             function toggleTextBox()
                 TextBox.Visible = not TextBox.Visible
                 if TextBox.Visible then
@@ -13042,18 +13104,26 @@ FunctionTable.VariableFunctions = {
             TextButton.MouseButton1Down:Connect(toggleTextBox)
             UserInputService.InputBegan:Connect(function(input, gameProcessed)
                 if gameProcessed then return end
-                if input.KeyCode == Enum.KeyCode.Period then
-                    toggleTextBox()
+                if input.UserInputType == Enum.UserInputType.Keyboard then
+                    local mappedKey = prefixKeyMap[commandPrefix]
+                    if mappedKey and input.KeyCode == mappedKey then
+                        toggleTextBox()
+                    elseif commandPrefix == "" and input.KeyCode == Enum.KeyCode.F2 then
+                        toggleTextBox()
+                    end
                 end
             end)
             TextBox.FocusLost:Connect(function(enterPressed)
                 if enterPressed then
                     local text = TextBox.Text
                     local command, partial = text:match("^(%S+)%s*(.*)")
-                    if command == ".tg" or command == ".rtg" or command == ".soft" or command == ".unsoft" then
+                    if command and commandPrefix ~= "" and command:sub(1, #commandPrefix) == commandPrefix then
+                        command = command:sub(#commandPrefix + 1)
+                    end
+                    if command == "tg" or command == "rtg" or command == "soft" or command == "unsoft" then
                         for _, p in ipairs(Players:GetPlayers()) do
                             if p.Name:lower():sub(1, #partial) == partial:lower() then
-                                TextBox.Text = command .. " " .. p.Name
+                                TextBox.Text = commandPrefix .. command .. " " .. p.Name
                                 break
                             end
                         end
@@ -13061,86 +13131,88 @@ FunctionTable.VariableFunctions = {
                 end
             end)
             TextBox.FocusLost:Connect(function(enterPressed)
-				if enterPressed then
-					local msg = TextBox.Text
-					local command, playerName = msg:match("^(%S+)%s*(.*)")
-
-					if command == ".tg" and playerName ~= "" then
-						for _, player in ipairs(Players:GetPlayers()) do
-							if player.Name:lower():find(playerName:lower()) then
-								if not table.find(permBlacklist, player.Name) then
-									table.insert(permBlacklist, player.Name)
-									game.StarterGui:SetCore("SendNotification", {
-										Title = "Player Targeted",
-										Text = player.Name .. " has been added to the permanent Blacklist.",
-										Duration = 3
-									})
-									FunctionTable['SaveBlacklistSettings']()
-								end
-								if Permsf then
-									pcall(function() refreshList("Permanent", Permsf) end)
-								end
-								break
-							end
-						end
-					elseif command == ".rtg" and playerName ~= "" then
-						for i, name in ipairs(permBlacklist) do
-							if name:lower():find(playerName:lower()) then
-								table.remove(permBlacklist, i)
-								game.StarterGui:SetCore("SendNotification", {
-									Title = "Player Untargeted",
-									Text = name .. " has been removed from permanent Blacklist.",
-									Duration = 3
-								})
-								FunctionTable['SaveBlacklistSettings']()
-								if Permsf then
-									pcall(function() refreshList("Permanent", Permsf) end)
-								end
-								break
-							end
-						end
-					elseif command == ".soft" and playerName ~= "" then
-						for _, player in ipairs(Players:GetPlayers()) do
-							if player.Name:lower():find(playerName:lower()) then
-								if not table.find(permWhitelist, player.Name) then
-									table.insert(permWhitelist, player.Name)
-									game.StarterGui:SetCore("SendNotification", {
-										Title = "Player Whitelisted",
-										Text = player.Name .. " has been added to the permanent Whitelist.",
-										Duration = 3
-									})
-									FunctionTable['SaveWhitelistSettings']()
-								end
-								if WPermsf then
-									pcall(function() refreshListRenamed("Permanent", WPermsf) end)
-								end
-								break
-							end
-						end
-					elseif command == ".unsoft" and playerName ~= "" then
-						for i, name in ipairs(permWhitelist) do
-							if name:lower():find(playerName:lower()) then
-								table.remove(permWhitelist, i)
-								game.StarterGui:SetCore("SendNotification", {
-									Title = "Player Unwhitelisted",
-									Text = name .. " has been removed from permanent Whitelist.",
-									Duration = 3
-								})
-								FunctionTable['SaveWhitelistSettings']()
-								if WPermsf then
-									pcall(function() refreshListRenamed("Permanent", WPermsf) end)
-								end
-								break
-							end
-						end
-                    elseif command == ".negative" then
+                if enterPressed then
+                    local msg = TextBox.Text
+                    local command, playerName = msg:match("^(%S+)%s*(.*)")
+                    if command and commandPrefix ~= "" and command:sub(1, #commandPrefix) == commandPrefix then
+                        command = command:sub(#commandPrefix + 1)
+                    end
+                    if command == "tg" and playerName ~= "" then
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if player.Name:lower():find(playerName:lower()) then
+                                if not table.find(permBlacklist, player.Name) then
+                                    table.insert(permBlacklist, player.Name)
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "Player Targeted",
+                                        Text = player.Name .. " has been added to the permanent Blacklist.",
+                                        Duration = 3
+                                    })
+                                    FunctionTable['SaveBlacklistSettings']()
+                                end
+                                if Permsf then
+                                    pcall(function() refreshList("Permanent", Permsf) end)
+                                end
+                                break
+                            end
+                        end
+                    elseif command == "rtg" and playerName ~= "" then
+                        for i, name in ipairs(permBlacklist) do
+                            if name:lower():find(playerName:lower()) then
+                                table.remove(permBlacklist, i)
+                                game.StarterGui:SetCore("SendNotification", {
+                                    Title = "Player Untargeted",
+                                    Text = name .. " has been removed from permanent Blacklist.",
+                                    Duration = 3
+                                })
+                                FunctionTable['SaveBlacklistSettings']()
+                                if Permsf then
+                                    pcall(function() refreshList("Permanent", Permsf) end)
+                                end
+                                break
+                            end
+                        end
+                    elseif command == "soft" and playerName ~= "" then
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if player.Name:lower():find(playerName:lower()) then
+                                if not table.find(permWhitelist, player.Name) then
+                                    table.insert(permWhitelist, player.Name)
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "Player Whitelisted",
+                                        Text = player.Name .. " has been added to the permanent Whitelist.",
+                                        Duration = 3
+                                    })
+                                    FunctionTable['SaveWhitelistSettings']()
+                                end
+                                if WPermsf then
+                                    pcall(function() refreshListRenamed("Permanent", WPermsf) end)
+                                end
+                                break
+                            end
+                        end
+                    elseif command == "unsoft" and playerName ~= "" then
+                        for i, name in ipairs(permWhitelist) do
+                            if name:lower():find(playerName:lower()) then
+                                table.remove(permWhitelist, i)
+                                game.StarterGui:SetCore("SendNotification", {
+                                    Title = "Player Unwhitelisted",
+                                    Text = name .. " has been removed from permanent Whitelist.",
+                                    Duration = 3
+                                })
+                                FunctionTable['SaveWhitelistSettings']()
+                                if WPermsf then
+                                    pcall(function() refreshListRenamed("Permanent", WPermsf) end)
+                                end
+                                break
+                            end
+                        end
+                    elseif command == "negative" then
                         if VariableTable['AutoTrain'] == true then
                             game.StarterGui:SetCore("SendNotification", {
                                 Title = "Notification",
                                 Text = "AutoTrain should be turned off to make the negative ninjutsu more faster",
                                 Duration = 5
                             })
-						end
+                        end
                         task.spawn(function()
                             repeat task.wait() until game.Players.LocalPlayer.Backpack:WaitForChild("Train")
                             local tool = game.Players.LocalPlayer.Backpack:FindFirstChild("Train")
@@ -13151,183 +13223,434 @@ FunctionTable.VariableFunctions = {
                                 game:GetService("ReplicatedStorage").RemoteEvent.AddPowerEvent:FireServer("FromTraining", -19916241294912496129491248999999.99)
                             end
                         end)
-					elseif command == ".wl" and playerName ~= "" then
-						for _, player in ipairs(Players:GetPlayers()) do
-							if string.find(player.Name:lower(), playerName:lower()) then
-								if not whitelist then
-									whitelist = {}
-								end
-								if not whitelist[player.Name] then
-									whitelist[player.Name] = true
-									game.StarterGui:SetCore("SendNotification", {
-										Title = "Whitelist",
-										Text = player.Name .. " has been whitelisted from NukeServer.",
-										Duration = 4
-									})
-								else
-									game.StarterGui:SetCore("SendNotification", {
-										Title = "Whitelist",
-										Text = player.Name .. " is already whitelisted.",
-										Duration = 4
-									})
-								end
-								break
-							end
-						end
-					elseif command == ".unwl" and playerName ~= "" then
-						if whitelist and next(whitelist) then
-							for name, _ in pairs(whitelist) do
-								if string.find(name:lower(), playerName:lower()) then
-									whitelist[name] = nil
-									game.StarterGui:SetCore("SendNotification", {
-										Title = "Whitelist",
-										Text = name .. " has been removed from NukeServer whitelist.",
-										Duration = 4
-									})
-									return
-								end
-							end
-							game.StarterGui:SetCore("SendNotification", {
-								Title = "Whitelist",
-								Text = "No player found in whitelist with name containing: " .. playerName,
-								Duration = 4
-							})
-						else
-							game.StarterGui:SetCore("SendNotification", {
-								Title = "Whitelist",
-								Text = "Whitelist is empty.",
-								Duration = 4
-							})
-						end
-					elseif command == ".twl" and playerName ~= "" then
-						for _, player in ipairs(Players:GetPlayers()) do
-							if string.find(player.Name:lower(), playerName:lower()) then
-								if not whitelist then
-									whitelist = {}
-								end
-								if not whitelist[player.Name] then
-									whitelist[player.Name] = true
-									game.StarterGui:SetCore("SendNotification", {
-										Title = "ThrowWhitelist",
-										Text = player.Name .. " has been whitelisted from TgAllPlayer.",
-										Duration = 4
-									})
-								else
-									game.StarterGui:SetCore("SendNotification", {
-										Title = "ThrowWhitelist",
-										Text = player.Name .. " is already whitelisted.",
-										Duration = 4
-									})
-								end
-								break
-							end
-						end
-					elseif command == ".untwl" and playerName ~= "" then
-						if whitelist and next(whitelist) then
-							for name, _ in pairs(whitelist) do
-								if string.find(name:lower(), playerName:lower()) then
-									whitelist[name] = nil
-									game.StarterGui:SetCore("SendNotification", {
-										Title = "ThrowWhitelist",
-										Text = name .. " has been removed from TgAllPlayer whitelist.",
-										Duration = 4
-									})
-									return
-								end
-							end
-							game.StarterGui:SetCore("SendNotification", {
-								Title = "ThrowWhitelist",
-								Text = "No player found in whitelist with name containing: " .. playerName,
-								Duration = 4
-							})
-						else
-							game.StarterGui:SetCore("SendNotification", {
-								Title = "ThrowWhitelist",
-								Text = "Whitelist is empty.",
-								Duration = 4
-							})
-						end
-					elseif command == ".except" and playerName ~= "" then
-						for _, player in ipairs(Players:GetPlayers()) do
-							if string.find(player.Name:lower(), playerName:lower()) then
-								if not connected then
-									connected = {}
-								end
-								if not connected[player.Name] then
-									connected[player.Name] = true
-									game.StarterGui:SetCore("SendNotification", {
-										Title = "HitBox",
-										Text = player.Name .. " has been excepted (excluded from HitBox).",
-										Duration = 4
-									})
-									pcall(function()
-										if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-											local hrp = player.Character.HumanoidRootPart
-											hrp.Size = Vector3.new(2, 2, 1)
-											hrp.Transparency = 1
-											hrp.BrickColor = BrickColor.new("Medium stone grey")
-											hrp.Material = "Plastic"
-											hrp.CanCollide = true
-										end
-									end)
-								else
-									game.StarterGui:SetCore("SendNotification", {
-										Title = "HitBox",
-										Text = player.Name .. " is already excepted.",
-										Duration = 4
-									})
-								end
-								break
-							end
-						end
-					elseif command == ".unexcept" and playerName ~= "" then
-						if connected and next(connected) then
-							for name, _ in pairs(connected) do
-								if string.find(name:lower(), playerName:lower()) then
-									connected[name] = nil
-									game.StarterGui:SetCore("SendNotification", {
-										Title = "HitBox",
-										Text = name .. " has been unexcepted (affected by HitBox again).",
-										Duration = 4
-									})
-									local player = Players:FindFirstChild(name)
-									if player and VariableTable['HitBox'] == true then
-										pcall(function()
-											if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-												local hrp = player.Character.HumanoidRootPart
-												local HeadSize = VariableTable['HitBoxSize']
-												hrp.Size = Vector3.new(HeadSize, HeadSize, HeadSize)
-												hrp.Transparency = 0.9
-												hrp.BrickColor = BrickColor.new("Really blue")
-												hrp.Material = "Neon"
-												hrp.CanCollide = false
-											end
-										end)
-									end
-									return
-								end
-							end
-							game.StarterGui:SetCore("SendNotification", {
-								Title = "HitBox",
-								Text = "No player found with name containing: " .. playerName,
-								Duration = 4
-							})
-						else
-							game.StarterGui:SetCore("SendNotification", {
-								Title = "HitBox",
-								Text = "No excepted players to unexcept.",
-								Duration = 4
-							})
-						end
-					end
-					TextBox.Text = ""
-					TextBox.Visible = false
-				end
-			end)
+                    elseif command == "cmdlists" then
+                        local CmdLists = Instance.new("ScreenGui")
+                        local Frame = Instance.new("Frame")
+                        local Title = Instance.new("TextLabel")
+                        local CloseButton = Instance.new("TextButton")
+                        local ScrollingFrame = Instance.new("ScrollingFrame")
+                        local UIListLayout = Instance.new("UIListLayout")
+
+                        CmdLists.Name = "CmdLists"
+                        CmdLists.IgnoreGuiInset = true
+                        CmdLists.ResetOnSpawn = false
+                        CmdLists.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+                        Frame.Name = "MainFrame"
+                        Frame.Parent = CmdLists
+                        Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+                        Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+                        Frame.Size = UDim2.new(0.45, 0, 0.55, 0)
+                        Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+                        Frame.BackgroundTransparency = 0.4
+                        Frame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+                        Frame.BorderSizePixel = 3
+                        Frame.Active = true
+                        Frame.Draggable = true
+
+                        Title.Parent = Frame
+                        Title.BackgroundTransparency = 1
+                        Title.Size = UDim2.new(1, 0, 0.13, 0)
+                        Title.Font = Enum.Font.Fantasy
+                        Title.Text = "Command Lists"
+                        Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        Title.TextScaled = true
+                        Title.TextWrapped = true
+
+                        CloseButton.Parent = Frame
+                        CloseButton.AnchorPoint = Vector2.new(1, 0)
+                        CloseButton.Position = UDim2.new(1, -6, 0, 6)
+                        CloseButton.Size = UDim2.new(0.08, 0, 0.1, 0)
+                        CloseButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                        CloseButton.BorderColor3 = Color3.fromRGB(30, 30, 30)
+                        CloseButton.Text = "X"
+                        CloseButton.TextScaled = true
+                        CloseButton.TextColor3 = Color3.new(255, 0, 0)
+                        CloseButton.Font = Enum.Font.Fantasy
+                        CloseButton.MouseButton1Click:Connect(function()
+                            CmdLists:Destroy()
+                        end)
+
+                        ScrollingFrame.Parent = Frame
+                        ScrollingFrame.Active = true
+                        ScrollingFrame.BackgroundTransparency = 1
+                        ScrollingFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+                        ScrollingFrame.Position = UDim2.new(0.03, 0, 0.16, 0)
+                        ScrollingFrame.Size = UDim2.new(0.94, 0, 0.8, 0)
+                        ScrollingFrame.ScrollBarThickness = 6
+                        ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+
+                        UIListLayout.Parent = ScrollingFrame
+                        UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+                        UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+                        UIListLayout.Padding = UDim.new(0, 8)
+                        UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                            ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+                        end)
+
+                        local commands = {
+                            {"tg", "adds a player to the permanent Blacklist"},
+                            {"rtg", "removes a player from the permanent Blacklist"},
+                            {"soft", "adds a player to the permanent Whitelist"},
+                            {"unsoft", "removes a player from the permanent Whitelist tab"},
+                            {"negative", "gives infinite health to a player"},
+                            {"setprefix", "changes the command bar prefix"},
+                            {"wl", "excludes a player from getting nuked (NukeServer)"},
+                            {"unwl", "includes the player again"},
+                            {"twl", "prevents a player from being targeted by TgAllPlayer"},
+                            {"untwl", "allows the twled player to be targeted again"},
+                            {"except", "excludes a player from HitBox (NOTE: useful for Level 3 executors)"},
+                            {"unexcept", "removes the exclusion"},
+                            {"hideff", "hides all player ForceFields (bubbles)"},
+                            {"unhideff", "shows the player's ForceFields again"},
+                            {"hidefx", "hides Sword and Shuriken effects such as particles and trails"},
+                            {"unhidefx", "shows Sword and Shuriken effects again"},
+                        }
+
+                        for _, cmd in ipairs(commands) do
+                            local Row = Instance.new("Frame")
+                            Row.Size = UDim2.new(1, -10, 0, 50)
+                            Row.BackgroundTransparency = 1
+                            Row.Parent = ScrollingFrame
+
+                            local CmdButton = Instance.new("TextLabel")
+                            CmdButton.Parent = Row
+                            CmdButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+                            CmdButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+                            CmdButton.BorderSizePixel = 2
+                            CmdButton.Size = UDim2.new(0.35, 0, 1, 0)
+                            CmdButton.Font = Enum.Font.Fantasy
+                            CmdButton.Text = cmd[1]
+                            CmdButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+                            CmdButton.TextScaled = true
+                            CmdButton.TextWrapped = true
+
+                            local Desc = Instance.new("TextLabel")
+                            Desc.Parent = Row
+                            Desc.BackgroundTransparency = 1
+                            Desc.Size = UDim2.new(0.6, 0, 1, 0)
+                            Desc.Position = UDim2.new(0.38, 0, 0, 0)
+                            Desc.Font = Enum.Font.Fantasy
+                            Desc.Text = "- " .. cmd[2]
+                            Desc.TextColor3 = Color3.fromRGB(255, 255, 255)
+                            Desc.TextScaled = true
+                            Desc.TextWrapped = true
+                            Desc.TextXAlignment = Enum.TextXAlignment.Left
+                        end
+                    elseif command == "wl" and playerName ~= "" then
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if string.find(player.Name:lower(), playerName:lower()) then
+                                if not whitelist then
+                                    whitelist = {}
+                                end
+                                if not whitelist[player.Name] then
+                                    whitelist[player.Name] = true
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "Whitelist",
+                                        Text = player.Name .. " has been whitelisted from NukeServer.",
+                                        Duration = 4
+                                    })
+                                else
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "Whitelist",
+                                        Text = player.Name .. " is already whitelisted.",
+                                        Duration = 4
+                                    })
+                                end
+                                break
+                            end
+                        end
+                    elseif command == "unwl" and playerName ~= "" then
+                        if whitelist and next(whitelist) then
+                            for name, _ in pairs(whitelist) do
+                                if string.find(name:lower(), playerName:lower()) then
+                                    whitelist[name] = nil
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "Whitelist",
+                                        Text = name .. " has been removed from NukeServer whitelist.",
+                                        Duration = 4
+                                    })
+                                    return
+                                end
+                            end
+                            game.StarterGui:SetCore("SendNotification", {
+                                Title = "Whitelist",
+                                Text = "No player found in whitelist with name containing: " .. playerName,
+                                Duration = 4
+                            })
+                        else
+                            game.StarterGui:SetCore("SendNotification", {
+                                Title = "Whitelist",
+                                Text = "Whitelist is empty.",
+                                Duration = 4
+                            })
+                        end
+                    elseif command == "twl" and playerName ~= "" then
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if string.find(player.Name:lower(), playerName:lower()) then
+                                if not whitelist then
+                                    whitelist = {}
+                                end
+                                if not whitelist[player.Name] then
+                                    whitelist[player.Name] = true
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "ThrowWhitelist",
+                                        Text = player.Name .. " has been whitelisted from TgAllPlayer.",
+                                        Duration = 4
+                                    })
+                                else
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "ThrowWhitelist",
+                                        Text = player.Name .. " is already whitelisted.",
+                                        Duration = 4
+                                    })
+                                end
+                                break
+                            end
+                        end
+                    elseif command == "untwl" and playerName ~= "" then
+                        if whitelist and next(whitelist) then
+                            for name, _ in pairs(whitelist) do
+                                if string.find(name:lower(), playerName:lower()) then
+                                    whitelist[name] = nil
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "ThrowWhitelist",
+                                        Text = name .. " has been removed from TgAllPlayer whitelist.",
+                                        Duration = 4
+                                    })
+                                    return
+                                end
+                            end
+                            game.StarterGui:SetCore("SendNotification", {
+                                Title = "ThrowWhitelist",
+                                Text = "No player found in whitelist with name containing: " .. playerName,
+                                Duration = 4
+                            })
+                        else
+                            game.StarterGui:SetCore("SendNotification", {
+                                Title = "ThrowWhitelist",
+                                Text = "Whitelist is empty.",
+                                Duration = 4
+                            })
+                        end
+                    elseif command == "except" and playerName ~= "" then
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if string.find(player.Name:lower(), playerName:lower()) then
+                                if not connected then
+                                    connected = {}
+                                end
+                                if not connected[player.Name] then
+                                    connected[player.Name] = true
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "HitBox",
+                                        Text = player.Name .. " has been excepted (excluded from HitBox).",
+                                        Duration = 4
+                                    })
+                                    pcall(function()
+                                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                                            local hrp = player.Character.HumanoidRootPart
+                                            hrp.Size = Vector3.new(2, 2, 1)
+                                            hrp.Transparency = 1
+                                            hrp.BrickColor = BrickColor.new("Medium stone grey")
+                                            hrp.Material = "Plastic"
+                                            hrp.CanCollide = true
+                                        end
+                                    end)
+                                else
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "HitBox",
+                                        Text = player.Name .. " is already excepted.",
+                                        Duration = 4
+                                    })
+                                end
+                                break
+                            end
+                        end
+                    elseif command == "unexcept" and playerName ~= "" then
+                        if connected and next(connected) then
+                            for name, _ in pairs(connected) do
+                                if string.find(name:lower(), playerName:lower()) then
+                                    connected[name] = nil
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "HitBox",
+                                        Text = name .. " has been unexcepted (affected by HitBox again).",
+                                        Duration = 4
+                                    })
+                                    local player = Players:FindFirstChild(name)
+                                    if player and VariableTable['HitBox'] == true then
+                                        pcall(function()
+                                            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                                                local hrp = player.Character.HumanoidRootPart
+                                                local HeadSize = VariableTable['HitBoxSize']
+                                                hrp.Size = Vector3.new(HeadSize, HeadSize, HeadSize)
+                                                hrp.Transparency = 0.9
+                                                hrp.BrickColor = BrickColor.new("Really blue")
+                                                hrp.Material = "Neon"
+                                                hrp.CanCollide = false
+                                            end
+                                        end)
+                                    end
+                                    return
+                                end
+                            end
+                            game.StarterGui:SetCore("SendNotification", {
+                                Title = "HitBox",
+                                Text = "No player found with name containing: " .. playerName,
+                                Duration = 4
+                            })
+                        else
+                            game.StarterGui:SetCore("SendNotification", {
+                                Title = "HitBox",
+                                Text = "No excepted players to unexcept.",
+                                Duration = 4
+                            })
+                        end
+                    elseif command == "hideff" and playerName ~= "" then
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if string.find(player.Name:lower(), playerName:lower()) then
+                                if not hiddenFF then
+                                    hiddenFF = {}
+                                end
+                                if not hiddenFF[player.Name] then
+                                    hiddenFF[player.Name] = true
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "ForceField",
+                                        Text = "ForceField hidden for " .. player.Name,
+                                        Duration = 4
+                                    })
+                                    task.spawn(function()
+                                        while hiddenFF[player.Name] do
+                                            if player.Character then
+                                                for _, v in ipairs(player.Character:GetChildren()) do
+                                                    if v:IsA("ForceField") then
+                                                        v.Visible = false
+                                                    end
+                                                end
+                                            end
+                                            task.wait(0.2)
+                                        end
+                                    end)
+                                else
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "ForceField",
+                                        Text = player.Name .. " is already hidden.",
+                                        Duration = 4
+                                    })
+                                end
+                                break
+                            end
+                        end
+                    elseif command == "unhideff" and playerName ~= "" then
+                        if hiddenFF and next(hiddenFF) then
+                            for name, _ in pairs(hiddenFF) do
+                                if string.find(name:lower(), playerName:lower()) then
+                                    hiddenFF[name] = nil
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "ForceField",
+                                        Text = "ForceField shown for " .. name,
+                                        Duration = 4
+                                    })
+                                    local player = Players:FindFirstChild(name)
+                                    if player and player.Character then
+                                        for _, v in ipairs(player.Character:GetChildren()) do
+                                            if v:IsA("ForceField") then
+                                                v.Visible = true
+                                            end
+                                        end
+                                    end
+                                    return
+                                end
+                            end
+                            game.StarterGui:SetCore("SendNotification", {
+                                Title = "ForceField",
+                                Text = "No player found with name containing: " .. playerName,
+                                Duration = 4
+                            })
+                        else
+                            game.StarterGui:SetCore("SendNotification", {
+                                Title = "ForceField",
+                                Text = "No players to unhide ForceField for.",
+                                Duration = 4
+                            })
+                        end
+                    elseif command == "hidefx" and playerName ~= "" then
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if string.find(player.Name:lower(), playerName:lower()) then
+                                if not hiddenFX then
+                                    hiddenFX = {}
+                                end
+                                if not hiddenFX[player.Name] then
+                                    hiddenFX[player.Name] = true
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "Effects",
+                                        Text = "All sword and shuriken effects hidden for " .. player.Name,
+                                        Duration = 4
+                                    })
+                                    task.spawn(function()
+                                        while hiddenFX[player.Name] do
+                                            if player.Character then
+                                                for _, v in ipairs(player.Character:GetDescendants()) do
+                                                    if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") then
+                                                        v.Enabled = false
+                                                    end
+                                                end
+                                            end
+                                            task.wait()
+                                        end
+                                    end)
+                                else
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "Effects",
+                                        Text = player.Name .. " is already hidden.",
+                                        Duration = 4
+                                    })
+                                end
+                                break
+                            end
+                        end
+                    elseif command == "unhidefx" and playerName ~= "" then
+                        if hiddenFX and next(hiddenFX) then
+                            for name, _ in pairs(hiddenFX) do
+                                if string.find(name:lower(), playerName:lower()) then
+                                    hiddenFX[name] = nil
+                                    game.StarterGui:SetCore("SendNotification", {
+                                        Title = "Effects",
+                                        Text = "All sword and shuriken effects shown for " .. name,
+                                        Duration = 4
+                                    })
+                                    local player = Players:FindFirstChild(name)
+                                    if player and player.Character then
+                                        for _, v in ipairs(player.Character:GetDescendants()) do
+                                            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") then
+                                                v.Enabled = true
+                                            end
+                                        end
+                                    end
+                                    return
+                                end
+                            end
+                            game.StarterGui:SetCore("SendNotification", {
+                                Title = "Effects",
+                                Text = "No player found with name containing: " .. playerName,
+                                Duration = 4
+                            })
+                        else
+                            game.StarterGui:SetCore("SendNotification", {
+                                Title = "Effects",
+                                Text = "No players to unhide effects for.",
+                                Duration = 4
+                            })
+                        end
+                    elseif command == "setprefix" and playerName ~= "" then
+                        changePrefix(playerName)
+                    end
+                    TextBox.Text = ""
+                    TextBox.Visible = false
+                end
+            end)
         elseif VariableTable['Commands'] == false then
-            local gui = Player.PlayerGui:FindFirstChild("CommandsGui")
-            if gui then
-                gui:Destroy()
+            if GuiCommand then
+                GuiCommand.Enabled = false
             end
         end
     end;
@@ -13389,6 +13712,15 @@ FunctionTable['SaveSettings'] = function()
             end
         end
         writefile(filename,httpservice:JSONEncode(Settings))
+    end
+end
+
+FunctionTable['SavePrefix'] = function()
+    local httpservice = game:GetService("HttpService")
+    if (writefile) then
+        local Settings = {}
+        Settings.CommandPrefix = commandPrefix
+        writefile(prefixfile, httpservice:JSONEncode(Settings))
     end
 end
 
@@ -13470,6 +13802,7 @@ FunctionTable['MasterFunc'] = function(Text, UIElement, Save, Loading)
     end
     if Save then
         FunctionTable['SaveSettings']()
+        FunctionTable['SavePrefix']()
 		FunctionTable['SaveWhitelistSettings']()
         FunctionTable['SaveBlacklistSettings']()
 		FunctionTable['SaveValueSettings']()
@@ -13617,47 +13950,25 @@ FunctionTable['LoadSettings'] = function()
     end
 end
 
-
-FunctionTable['LoadWhitelistSettings'] = function()
+FunctionTable['LoadPrefix'] = function()
     local httpservice = game:GetService("HttpService")
-    if (readfile and isfile and isfile(whitefile)) then
-        local Settings = httpservice:JSONDecode(readfile(whitefile))
-		permWhitelist = {}
-        for i,v in pairs(Settings.permWhitelist) do	
-            table.insert(permWhitelist, v)
+    if (readfile and isfile and isfile(prefixfile)) then
+        local Settings = httpservice:JSONDecode(readfile(prefixfile))
+        if Settings.CommandPrefix then
+            commandPrefix = Settings.CommandPrefix
+            TextBox.PlaceholderText = "Enter command (" .. commandPrefix .. "tg, " .. commandPrefix .. "rtg, " .. commandPrefix .. "soft, " .. commandPrefix .. "unsoft, " .. commandPrefix .. "negative, " .. commandPrefix .. "wl, " .. commandPrefix .. "unwl, " .. commandPrefix .. "twl, " .. commandPrefix .. "untwl, " .. commandPrefix .. "except, " .. commandPrefix .. "unexcept, " .. commandPrefix .. "cmdlists, " .. commandPrefix .. "setprefix, etc)..."
         end
-    end
-end
-
-FunctionTable['LoadBlacklistSettings'] = function()
-    local httpservice = game:GetService("HttpService")
-    if (readfile and isfile and isfile(permafile)) then
-        local Settings = httpservice:JSONDecode(readfile(permafile))
-        permBlacklist = {}
-        for i,v in ipairs(Settings.permBlacklist) do
-            table.insert(permBlacklist, v)
-        end
-    end
-end
-
-FunctionTable['LoadValueSettings'] = function()
-    local httpservice = game:GetService("HttpService")
-    if (readfile and isfile and isfile(valuesfile)) then
-        local Settings = httpservice:JSONDecode(readfile(valuesfile))
-        totalTime = Settings.TotalSavedTime
-		killCount = Settings.TotalKills
-		totalTrainingTime = Settings.TotalTrainingTime
     end
 end
 
 FunctionTable['UpdateNotification'] = function(forceNotify)
 	if writefile and isfile then
-		if forceNotify and isfile(update1) then
-			delfile(update1)
+		if forceNotify and isfile(update2) then
+			delfile(update2)
 		end
 
-		if not isfile(update1) then
-			writefile(update1, "shown")
+		if not isfile(update2) then
+			writefile(update2, "shown")
 
 			pcall(function()
 				game:GetService("StarterGui"):SetCore("SendNotification", {
@@ -13726,39 +14037,20 @@ FunctionTable['UpdateNotification'] = function(forceNotify)
 			Text.Text = [[
             CleventHub has been updated!
 
-            New Saved Buttons:
-            VIPPass
-            PizzaPass
-            SillySwords
-            RainbowPass
-            TrippyPass
-            Commands
+            🛠️New Commands:
+			cmdlists --> type this command to see all available commands (opens the gui Command lists)
 
-            New Commands:
-            .wl --> Exclude a player from getting nuked (NukeServer)
-            .unwl --> Include the player again
+			setprefix --> changes the command bar prefix (NOTE: the only prefixes you can use are dot(.), slash(/), and semicolon(;) )
 
-            .twl --> Prevent a player from being targeted by TgAllPlayer
-            .untwl --> Allow the whitelisted player to be targeted again
+			hideff --> hides all player's ForceFields (Bubbles)
+			unhideff --> shows the player's ForceFields again
 
-            .except --> Exclude a player from HitBox (NOTE: This is useful for Level 3 executors)
-            .unexcept --> Remove the exclusion
+			hidefx --> hides Sword and Shuriken effects such as Particles and Trails
+			unhidefx --> shows Sword and Shuriken effects again
+			(Note: this is useful if your lagging)
             <------------------------------------------------------------------------------------------->
-            AutoScale for Mobile and PC users:
-            Whitelist
-            Blacklist
-            Commands
-            (You’ll notice scale differences between mobile and PC)
-
-            Fixed:
-            Aimbot -- PC only. Press E to lock on, O to change team target, L to update ESP
-            
-            We also fixed all the text sign in the game so you won't be able to edit it anymore (NOTICE: IT'S BECAUSE ANNOYING RIGHT? ESPECIALLY FOR MOBILE USERS)
-
-            Connections:
-            AutoDetect --> Detects players with negative Ninjutsu and adds them to the Temporary Blacklist (NOTE: AutoTarget must be turned ON)
-            DisableGuis --> Reduces lag. (Tip: You may also want to turn ON both ToggleWalk and InfiniteJump)
-            BendingShur --> Type SHEESH, HEART, L, LOVE, W on the BendingTypeShuriken (NOTE: Click on the BendingTypeShuriken one time before turning ON the BendingShur)
+            🛠️Fixed:
+            Whitelist --> Disables Attacker's shurikens temporarily so they won't recieve the same damage as you
             
             ]]
 			Text.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -13790,6 +14082,38 @@ FunctionTable['UpdateNotification'] = function(forceNotify)
 			end)
 		end
 	end
+end
+
+FunctionTable['LoadWhitelistSettings'] = function()
+    local httpservice = game:GetService("HttpService")
+    if (readfile and isfile and isfile(whitefile)) then
+        local Settings = httpservice:JSONDecode(readfile(whitefile))
+		permWhitelist = {}
+        for i,v in pairs(Settings.permWhitelist) do	
+            table.insert(permWhitelist, v)
+        end
+    end
+end
+
+FunctionTable['LoadBlacklistSettings'] = function()
+    local httpservice = game:GetService("HttpService")
+    if (readfile and isfile and isfile(permafile)) then
+        local Settings = httpservice:JSONDecode(readfile(permafile))
+        permBlacklist = {}
+        for i,v in ipairs(Settings.permBlacklist) do
+            table.insert(permBlacklist, v)
+        end
+    end
+end
+
+FunctionTable['LoadValueSettings'] = function()
+    local httpservice = game:GetService("HttpService")
+    if (readfile and isfile and isfile(valuesfile)) then
+        local Settings = httpservice:JSONDecode(readfile(valuesfile))
+        totalTime = Settings.TotalSavedTime
+		killCount = Settings.TotalKills
+		totalTrainingTime = Settings.TotalTrainingTime
+    end
 end
 
 FunctionTable['ConnectTool'] = function(tool)
@@ -13837,6 +14161,7 @@ end
 FunctionTable['UpdateElements']()
 FunctionTable['UpdateTextFrames']()
 FunctionTable['LoadSettings']()
+FunctionTable['LoadPrefix']()
 FunctionTable['LoadWhitelistSettings']()
 FunctionTable['LoadBlacklistSettings']()
 FunctionTable['LoadValueSettings']()
@@ -13853,6 +14178,12 @@ Backpack.ChildAdded:Connect(function(tool)
 		FunctionTable['ConnectTool'](tool)
 	end
 end)
+for i,v in ipairs(Character:GetChildren()) do
+	if v:IsA("Tool") and v.Name == "Train" then
+		FunctionTable['ConnectTool'](v)
+		equipped = true
+	end
+end
 
 task.spawn(function()
     for i,v in pairs(Player.PlayerGui:GetChildren()) do
@@ -13891,7 +14222,7 @@ Players.LocalPlayer.CharacterAdded:Connect(function(NewChar)
 		task.delay(1, function()
             if thisRespawn == respawnCounter and VariableTable['CloneTools'] == true then
                 local count = 0
-                for _,v in ipairs(Players.LocalPlayer:WaitForChild("Backpack"):GetChildren()) do
+                for i,v in ipairs(Players.LocalPlayer:WaitForChild("Backpack"):GetChildren()) do
                     if v:IsA("Tool") and v.Name == "Shuriken" then
                         count += 1
                     end
@@ -13989,6 +14320,7 @@ end)
 Players.PlayerRemoving:Connect(function(removedPlr)
     if removedPlr == Players.LocalPlayer then
         FunctionTable['SaveSettings']()
+        FunctionTable['LoadPrefix']()
 		FunctionTable['SaveWhitelistSettings']()
         FunctionTable['SaveBlacklistSettings']()
 		FunctionTable['SaveValueSettings']()
